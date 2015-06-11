@@ -1,0 +1,19 @@
+import GoProject 1.1
+
+GoProject {
+    Application {
+        name: "gosemki"
+        GoFiles {
+        }
+        QmlFiles {
+        }
+        JavaScriptFiles {
+        }
+    }
+//    Package {
+//        name: "github.com/codegangsta/cli"
+//        Files {
+//            filter: "*.*"
+//        }
+//    }
+}
