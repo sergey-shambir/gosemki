@@ -17,9 +17,9 @@ func ShowApplicationUsage() {
     flag.PrintDefaults()
     fmt.Fprintf(os.Stderr,
             "\nCommands:\n"+
-            "  highlight <offset> [<path>]        highlight command\n" +
-            "  close                              close the gocode daemon\n" +
-            "  status                             gocode daemon status report\n")
+            "  highlight [<path>]       highlight command\n" +
+            "  close                    close the gocode daemon\n" +
+            "  status                   gocode daemon status report\n")
 }
 
 type Application struct {
@@ -58,7 +58,7 @@ func (this *Application) ExecClient() int {
         client.Input = this.Input
         client.Command = flag.Arg(0)
         client.CommandArgs = flag.Args()[1:]
-        client.Socket = this.GetSocketFilename() //this.GetSocketFilename()
+        client.Socket = this.GetSocketFilename()
         return client.Exec()
     }
     ShowApplicationUsage()

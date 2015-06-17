@@ -10,7 +10,8 @@ type GoRange struct {
 type GoError struct {
     Line int
     Column int
-    Lenght int
+    Offset int
+    Length int
     Message string
 }
 
@@ -22,7 +23,6 @@ type ServerRPC struct {
 type ArgsHighlight struct {
     Content []byte
     Path string
-    Cursor int64
     Context GoBuildContext
 }
 type ReplyHighlight struct {
@@ -30,13 +30,11 @@ type ReplyHighlight struct {
     Errors []GoError
 }
 func (r *ServerRPC) Highlight(args *ArgsHighlight, reply *ReplyHighlight) error {
-    // FIXME: do job
-    reply.Ranges = []GoRange{}
-    reply.Errors = []GoError{ GoError{0, 0, 1, "not implemented"} }
+    reply.Ranges, reply.Errors = g_app.Server.Highlight(args.Content, args.Path, args.Context)
     return nil
 }
-func ClientHighlight(client *rpc.Client, content []byte, path string, cursor int64, context GoBuildContext) (ranges []GoRange, errors []GoError) {
-    args := &ArgsHighlight{content, path, cursor, context}
+func ClientHighlight(client *rpc.Client, content []byte, path string, context GoBuildContext) (ranges []GoRange, errors []GoError) {
+    args := &ArgsHighlight{content, path, context}
     var reply ReplyHighlight
     err := client.Call("ServerRPC.Highlight", args, &reply)
     if err != nil {

@@ -6,6 +6,8 @@ import (
     "net/rpc"
     "fmt"
     "runtime"
+    "go/build"
+    "reflect"
 )
 
 const (
@@ -16,6 +18,7 @@ type Server struct {
     Socket string
     Listener net.Listener
     CmdInput chan int
+    Context build.Context
 }
 
 func (this *Server) Exec(socket string) int {
@@ -64,6 +67,29 @@ func (this *Server) Loop() {
             }
         }
     }
+}
+
+func (this *Server) DropCache() {
+    // Currently does nothing
+}
+
+func (this *Server) Highlight(file []byte, filePath string, packedContext GoBuildContext) (ranges []GoRange, errors []GoError) {
+    context := UnpackGoBuildContext(&packedContext)
+    defer func() {
+        if err := recover(); err != nil {
+            PrintBacktrace(err)
+            errors = []GoError{ {0, 0, 0, 1, "panic occured"} }
+            this.DropCache()
+        }
+    }()
+    if !reflect.DeepEqual(context, this.Context) {
+        this.DropCache()
+        this.Context = context
+    }
+    indexer := new(PackageIndexer)
+    indexer.Reindex(filePath, file)
+    errors = indexer.errors
+    return ranges, errors
 }
 
 func (this *Server) Close() {

@@ -6,11 +6,11 @@ import (
     "fmt"
     "time"
     "go/build"
-    "strconv"
     "errors"
     "bytes"
     "bufio"
     "io"
+    "path/filepath"
 )
 
 type Client struct {
@@ -106,16 +106,9 @@ func (this *Client) TryConnectServer(network, address string) (err error) {
 }
 
 func (this *Client) ExecHighlight() {
-    if len(this.CommandArgs) == 0 {
-        panic(errors.New("<cursor> argument missed"))
-    }
-    cursor, err := strconv.ParseInt(this.CommandArgs[0], 10, 32)
-    if err != nil {
-        panic(errors.New(fmt.Sprintf("argument <cursor> should be integer, but got '%s'", this.CommandArgs[0])))
-    }
     context := PackGoBuildContext(&build.Default)
     content, path := this.PrepareFileTraits()
-    ranges, errors := ClientHighlight(this.RpcClient, content, path, cursor, context)
+    ranges, errors := ClientHighlight(this.RpcClient, content, path, context)
     // FIXME: print (ranges, errors) returned by ClientHighlight
     fmt.Printf("ranges length = %d, errors length = %d\n", len(ranges), len(errors))
 }
@@ -152,10 +145,10 @@ func (this *Client) PrepareFileTraits() ([]byte, string) {
             fileContent.Write(buffer[:readCount])
         }
     } else {
-        if (len(this.CommandArgs) < 2) {
+        if (len(this.CommandArgs) == 0) {
             panic(errors.New("missed <path> parameter or -in=<path> option"))
         }
-        filePath = this.CommandArgs[1]
+        filePath = this.CommandArgs[0]
         reader := bufio.NewReader(os.Stdin)
         for {
             line, _, err := reader.ReadLine()
@@ -167,6 +160,10 @@ func (this *Client) PrepareFileTraits() ([]byte, string) {
                 break
             }
         }
+    }
+    if len(filePath) != 0 && !filepath.IsAbs(filePath) {
+        cwd, _ := os.Getwd()
+        filePath = filepath.Join(cwd, filePath)
     }
     return fileContent.Bytes(), filePath
 }
