@@ -5,16 +5,28 @@ import (
     "os"
     "fmt"
     "time"
+    "go/build"
+    "strconv"
+    "errors"
+    "bytes"
+    "bufio"
+    "io"
 )
 
 type Client struct {
     Input string
     Command string
+    CommandArgs []string
     Socket string
     RpcClient *rpc.Client
 }
 
 func (this *Client) Exec() int {
+    defer func() {
+        if panicErr := recover(); panicErr != nil {
+            PrintBacktrace(panicErr)
+        }
+    }()
     var err error
     this.RpcClient, err = rpc.Dial("unix", this.Socket)
     if err != nil {
@@ -47,7 +59,7 @@ func (this *Client) Exec() int {
     case "status":
         this.ExecStatus()
     default:
-        fmt.Printf("Unknown command %s\n", this.Command)
+        fmt.Fprintf(os.Stderr, "Unknown command %s\n", this.Command)
         return 1
     }
     return 0
@@ -94,6 +106,18 @@ func (this *Client) TryConnectServer(network, address string) (err error) {
 }
 
 func (this *Client) ExecHighlight() {
+    if len(this.CommandArgs) == 0 {
+        panic(errors.New("<cursor> argument missed"))
+    }
+    cursor, err := strconv.ParseInt(this.CommandArgs[0], 10, 32)
+    if err != nil {
+        panic(errors.New(fmt.Sprintf("argument <cursor> should be integer, but got '%s'", this.CommandArgs[0])))
+    }
+    context := PackGoBuildContext(&build.Default)
+    content, path := this.PrepareFileTraits()
+    ranges, errors := ClientHighlight(this.RpcClient, content, path, cursor, context)
+    // FIXME: print (ranges, errors) returned by ClientHighlight
+    fmt.Printf("ranges length = %d, errors length = %d\n", len(ranges), len(errors))
 }
 
 func (this *Client) ExecClose() {
@@ -103,4 +127,46 @@ func (this *Client) ExecClose() {
 func (this *Client) ExecStatus() {
     status := ClientStatus(this.RpcClient)
     fmt.Printf("Daemon status: '%s'\n", status)
+}
+
+func (this *Client) PrepareFileTraits() ([]byte, string) {
+    const BUFFER_SIZE = 64 * 1024
+    var fileContent bytes.Buffer
+    var filePath string
+    if len(g_app.Input) > 0 {
+        filePath = g_app.Input
+        file, err := os.Open(g_app.Input)
+        if err != nil {
+            panic(err)
+        }
+        defer file.Close()
+        buffer := make([]byte, BUFFER_SIZE)
+        for  {
+            readCount, err := file.Read(buffer)
+            if err != nil && err != io.EOF {
+                panic(err)
+            }
+            if readCount == 0 {
+                break
+            }
+            fileContent.Write(buffer[:readCount])
+        }
+    } else {
+        if (len(this.CommandArgs) < 2) {
+            panic(errors.New("missed <path> parameter or -in=<path> option"))
+        }
+        filePath = this.CommandArgs[1]
+        reader := bufio.NewReader(os.Stdin)
+        for {
+            line, _, err := reader.ReadLine()
+            if err != nil && err != io.EOF {
+                panic(err)
+            }
+            fileContent.Write(line)
+            if err == io.EOF {
+                break
+            }
+        }
+    }
+    return fileContent.Bytes(), filePath
 }

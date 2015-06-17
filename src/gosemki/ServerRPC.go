@@ -8,10 +8,10 @@ import (
 type GoRange struct {
 }
 type GoError struct {
-    line int
-    column int
-    lenght int
-    message string
+    Line int
+    Column int
+    Lenght int
+    Message string
 }
 
 type ServerRPC struct {
@@ -22,29 +22,27 @@ type ServerRPC struct {
 type ArgsHighlight struct {
     Content []byte
     Path string
-    Cursor int
+    Cursor int64
     Context GoBuildContext
 }
 type ReplyHighlight struct {
-    ranges []GoRange
-    errors []GoError
+    Ranges []GoRange
+    Errors []GoError
 }
 func (r *ServerRPC) Highlight(args *ArgsHighlight, reply *ReplyHighlight) error {
     // FIXME: do job
+    reply.Ranges = []GoRange{}
+    reply.Errors = []GoError{ GoError{0, 0, 1, "not implemented"} }
     return nil
 }
-func ClientHighlight(client *rpc.Client, content []byte, path string, cursor int, context GoBuildContext) (ranges []GoRange, errors []GoError) {
-    var args ArgsHighlight
+func ClientHighlight(client *rpc.Client, content []byte, path string, cursor int64, context GoBuildContext) (ranges []GoRange, errors []GoError) {
+    args := &ArgsHighlight{content, path, cursor, context}
     var reply ReplyHighlight
-    args.Content = content
-    args.Path = path
-    args.Cursor = cursor
-    args.Context = context
-    err := client.Call("ServerRPC.Highlight", &args, &reply)
+    err := client.Call("ServerRPC.Highlight", args, &reply)
     if err != nil {
         panic(err)
     }
-    return reply.ranges, reply.errors
+    return reply.Ranges, reply.Errors
 }
 
 // RPC for close server

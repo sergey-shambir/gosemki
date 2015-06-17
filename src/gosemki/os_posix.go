@@ -6,6 +6,9 @@ import (
         "os"
         "os/exec"
         "path/filepath"
+        "runtime"
+        "sync"
+        "fmt"
 )
 
 func FileExists(filename string) bool {
@@ -53,4 +56,29 @@ func GetGocodeConfigDir() string {
 
 func GetGocodeConfigFile() string {
     return filepath.Join(GetXdgConfigDir(), "gocode", "config.json")
+}
+
+//-------------------------------------------------------------------------
+// print_backtrace
+//
+// a nicer backtrace printer than the default one
+//-------------------------------------------------------------------------
+
+var g_backtraceMutex sync.Mutex
+
+func PrintBacktrace(err interface{}) {
+    g_backtraceMutex.Lock()
+    defer g_backtraceMutex.Unlock()
+    fmt.Fprintf(os.Stderr, "panic: %v\n", err)
+    i := 2
+    for {
+        pc, file, line, ok := runtime.Caller(i)
+        if !ok {
+            break
+        }
+        f := runtime.FuncForPC(pc)
+        fmt.Fprintf(os.Stderr, "%d.\t(%s): %s:%d\n", i-1, f.Name(), file, line)
+        i++
+    }
+    fmt.Fprintln(os.Stderr, "")
 }
