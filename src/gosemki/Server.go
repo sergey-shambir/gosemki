@@ -89,6 +89,7 @@ func (this *Server) Highlight(file []byte, filePath string, packedContext GoBuil
     indexer := new(PackageIndexer)
     indexer.Reindex(filePath, file)
     errors = indexer.errors
+    ranges = indexer.ranges
     return ranges, errors
 }
 

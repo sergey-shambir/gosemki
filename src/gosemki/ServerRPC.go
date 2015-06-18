@@ -4,17 +4,6 @@ import (
     "net/rpc"
 )
 
-// FIXME: move to other file
-type GoRange struct {
-}
-type GoError struct {
-    Line int
-    Column int
-    Offset int
-    Length int
-    Message string
-}
-
 type ServerRPC struct {
 }
 

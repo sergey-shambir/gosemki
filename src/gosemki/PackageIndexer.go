@@ -64,10 +64,26 @@ const (
     `
 )
 
+type GoRange struct {
+    Line int
+    Column int
+    Offset int
+    Length int
+    Kind ast.ObjKind
+}
+type GoError struct {
+    Line int
+    Column int
+    Offset int
+    Length int
+    Message string
+}
+
 type PackageIndexer struct {
     fset            *token.FileSet
     files           map[string]*ast.File
     errors          []GoError
+    ranges          []GoRange
     packageName     string
 }
 
@@ -88,36 +104,72 @@ func (this *PackageIndexer) Reindex(filePath string, file []byte) {
     this.fset = token.NewFileSet()
     this.files = make(map[string]*ast.File)
     this.errors = []GoError{}
+    this.ranges = []GoRange{}
 
     this.Parse(filePath, file)
     for _, name := range this.FindAllPackageFiles(filePath) {
         this.Parse(name, nil)
     }
+    this.InjectBuiltinPackage()
 
-    // Hack to add `builtin` package definitions
+    pkgAst, errors := ast.NewPackage(this.fset, this.files, DefaultImporter, nil)
+    if errors != nil {
+        errorList, _ := errors.(scanner.ErrorList)
+        this.ParseErrorsInFile(errorList, filePath)
+    }
+    fileAst := pkgAst.Files[filePath]
+    ast.Inspect(fileAst, func (node ast.Node) bool {
+        return this.InspectNode(node)
+    })
+}
+
+func (this *PackageIndexer) InspectNode(node ast.Node) bool {
+    switch x := node.(type) {
+        case *ast.Ident:
+            if x.Obj != nil && x.Obj.Kind != ast.Bad {
+                pos := this.fset.Position(x.NamePos)
+                goRange := GoRange{
+                    Line:   pos.Line,
+                    Column: pos.Column,
+                    Offset: pos.Offset,
+                    Length: len(x.Name),
+                    Kind:   x.Obj.Kind,
+                }
+                this.ranges = append(this.ranges, goRange)
+            }
+            return false
+        case *ast.CommentGroup:
+            return false
+        case *ast.Comment:
+            return false
+        case *ast.CompositeLit:
+            return false
+    }
+    return true
+}
+
+// Hack to inject `builtin` package definitions into parsed package
+func (this *PackageIndexer) InjectBuiltinPackage() {
     var hackContent bytes.Buffer
     hackContent.WriteString("package ")
     hackContent.WriteString(this.packageName)
     hackContent.WriteString(";\n")
     hackContent.WriteString(BUILTIN_PKG_CONTENT)
     this.Parse("", hackContent.Bytes())
+}
 
-    _, errors := ast.NewPackage(this.fset, this.files, DefaultImporter, nil)
-    if errors != nil {
-        list, _ := errors.(scanner.ErrorList)
-        for _, scanError := range list {
-            if scanError.Pos.Filename == filePath {
-                var goerr GoError
-                goerr.Line = scanError.Pos.Line
-                goerr.Column = scanError.Pos.Column
-                goerr.Length = len(scanError.Pos.String())
-                goerr.Offset = scanError.Pos.Offset
-                goerr.Message = scanError.Msg
-                this.errors = append(this.errors, goerr)
-            }
+func (this *PackageIndexer) ParseErrorsInFile(errors scanner.ErrorList, filePath string) {
+    for _, scanError := range errors {
+        if scanError.Pos.Filename == filePath {
+            var goerr GoError
+            goerr.Line = scanError.Pos.Line
+            goerr.Column = scanError.Pos.Column
+            goerr.Length = len(scanError.Pos.String())
+            goerr.Offset = scanError.Pos.Offset
+            goerr.Message = scanError.Msg
+            this.errors = append(this.errors, goerr)
         }
     }
-    // merged := ast.MergePackageFiles(pkg, ast.FilterFuncDuplicates)
 }
 
 func (this *PackageIndexer) FindAllPackageFiles(filePath string) []string {
