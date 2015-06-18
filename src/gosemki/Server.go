@@ -78,7 +78,7 @@ func (this *Server) Highlight(file []byte, filePath string, packedContext GoBuil
     defer func() {
         if err := recover(); err != nil {
             PrintBacktrace(err)
-            errors = []GoError{ {0, 0, 0, 1, "panic occured"} }
+            errors = []GoError{ {GoPos{0, 0, 0}, 1, "panic occured"} }
             this.DropCache()
         }
     }()

@@ -64,21 +64,6 @@ const (
     `
 )
 
-type GoRange struct {
-    Line int
-    Column int
-    Offset int
-    Length int
-    Kind ast.ObjKind
-}
-type GoError struct {
-    Line int
-    Column int
-    Offset int
-    Length int
-    Message string
-}
-
 type PackageIndexer struct {
     fset            *token.FileSet
     files           map[string]*ast.File
@@ -128,13 +113,12 @@ func (this *PackageIndexer) InspectNode(node ast.Node) bool {
         case *ast.Ident:
             if x.Obj != nil && x.Obj.Kind != ast.Bad {
                 pos := this.fset.Position(x.NamePos)
-                goRange := GoRange{
-                    Line:   pos.Line,
-                    Column: pos.Column,
-                    Offset: pos.Offset,
-                    Length: len(x.Name),
-                    Kind:   x.Obj.Kind,
-                }
+                var goRange GoRange
+                goRange.Line = pos.Line
+                goRange.Column = pos.Column
+                goRange.Offset = pos.Offset
+                goRange.Length = len(x.Name)
+                goRange.Kind = x.Obj.Kind
                 this.ranges = append(this.ranges, goRange)
             }
             return false
@@ -158,6 +142,7 @@ func (this *PackageIndexer) InjectBuiltinPackage() {
     this.Parse("", hackContent.Bytes())
 }
 
+// Translates *scanner.ErrorList into []GoError
 func (this *PackageIndexer) ParseErrorsInFile(errors scanner.ErrorList, filePath string) {
     for _, scanError := range errors {
         if scanError.Pos.Filename == filePath {
@@ -172,6 +157,7 @@ func (this *PackageIndexer) ParseErrorsInFile(errors scanner.ErrorList, filePath
     }
 }
 
+// Finds other files from the same packge as parsed file
 func (this *PackageIndexer) FindAllPackageFiles(filePath string) []string {
     dir := path.Dir(filePath)
     file, err := os.Open(dir)

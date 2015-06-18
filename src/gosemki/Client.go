@@ -11,6 +11,7 @@ import (
     "bufio"
     "io"
     "path/filepath"
+    "encoding/json"
 )
 
 type Client struct {
@@ -105,12 +106,21 @@ func (this *Client) TryConnectServer(network, address string) (err error) {
     return err
 }
 
+type HighlightResult struct {
+    Ranges []GoRange
+    Errors []GoError
+}
+
 func (this *Client) ExecHighlight() {
     context := PackGoBuildContext(&build.Default)
     content, path := this.PrepareFileTraits()
-    ranges, errors := ClientHighlight(this.RpcClient, content, path, context)
-    // FIXME: print (ranges, errors) returned by ClientHighlight
-    fmt.Printf("ranges length = %d, errors length = %d\n", len(ranges), len(errors))
+    var result HighlightResult
+    result.Ranges, result.Errors = ClientHighlight(this.RpcClient, content, path, context)
+    jsonBytes, err := json.Marshal(result)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("%s\n", string(jsonBytes))
 }
 
 func (this *Client) ExecClose() {
