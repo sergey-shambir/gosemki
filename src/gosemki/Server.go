@@ -8,6 +8,7 @@ import (
     "runtime"
     "go/build"
     "reflect"
+    "errors"
 )
 
 const (
@@ -50,7 +51,7 @@ func (this *Server) Loop() {
         for {
             conn, err := this.Listener.Accept()
             if err != nil {
-                panic(err)
+                panic(errors.New("Daemon socket connection failure: " + err.Error()))
             }
             connInput <- conn
         }
@@ -73,24 +74,25 @@ func (this *Server) DropCache() {
     // Currently does nothing
 }
 
-func (this *Server) Highlight(file []byte, filePath string, packedContext GoBuildContext) (ranges []GoRange, errors []GoError) {
-    context := UnpackGoBuildContext(&packedContext)
+func (this *Server) Reindex(file []byte, filePath string, packedContext GoBuildContext) (result *IndexerResult) {
     defer func() {
+        // TODO: doesn't recover from panic, find reason and fix.
         if err := recover(); err != nil {
             PrintBacktrace(err)
-            errors = []GoError{ {GoPos{0, 0, 0}, 1, "panic occured"} }
+            result := new(IndexerResult)
+            result.AddError(GoError{GoPos{0, 0, 0}, 1, "panic occured"})
             this.DropCache()
         }
     }()
+    context := UnpackGoBuildContext(&packedContext)
     if !reflect.DeepEqual(context, this.Context) {
         this.DropCache()
         this.Context = context
     }
     indexer := new(PackageIndexer)
     indexer.Reindex(filePath, file)
-    errors = indexer.errors
-    ranges = indexer.ranges
-    return ranges, errors
+    result = indexer.result
+    return result
 }
 
 func (this *Server) Close() {

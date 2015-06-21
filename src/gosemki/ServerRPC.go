@@ -9,27 +9,25 @@ type ServerRPC struct {
 
 // RPC for higlight
 
-type ArgsHighlight struct {
+type ArgsReindex struct {
     Content []byte
     Path string
     Context GoBuildContext
 }
-type ReplyHighlight struct {
-    Ranges []GoRange
-    Errors []GoError
-}
-func (r *ServerRPC) Highlight(args *ArgsHighlight, reply *ReplyHighlight) error {
-    reply.Ranges, reply.Errors = g_app.Server.Highlight(args.Content, args.Path, args.Context)
+
+func (r *ServerRPC) Reindex(args *ArgsReindex, result *IndexerResult) error {
+    *result = *g_app.Server.Reindex(args.Content, args.Path, args.Context)
     return nil
 }
-func ClientHighlight(client *rpc.Client, content []byte, path string, context GoBuildContext) (ranges []GoRange, errors []GoError) {
-    args := &ArgsHighlight{content, path, context}
-    var reply ReplyHighlight
-    err := client.Call("ServerRPC.Highlight", args, &reply)
+
+func ClientReindex(client *rpc.Client, content []byte, path string, context GoBuildContext) IndexerResult {
+    args := &ArgsReindex{content, path, context}
+    var result IndexerResult
+    err := client.Call("ServerRPC.Reindex", args, &result)
     if err != nil {
         panic(err)
     }
-    return reply.Ranges, reply.Errors
+    return result
 }
 
 // RPC for close server

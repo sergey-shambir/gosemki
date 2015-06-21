@@ -9,6 +9,7 @@ import (
     "strings"
     "go/scanner"
     "bytes"
+    "fmt"
 )
 
 const (
@@ -67,9 +68,8 @@ const (
 type PackageIndexer struct {
     fset            *token.FileSet
     files           map[string]*ast.File
-    errors          []GoError
-    ranges          []GoRange
     packageName     string
+    result          *IndexerResult
 }
 
 func DefaultImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
@@ -88,8 +88,7 @@ func (this *PackageIndexer) Reindex(filePath string, file []byte) {
     this.packageName = ""
     this.fset = token.NewFileSet()
     this.files = make(map[string]*ast.File)
-    this.errors = []GoError{}
-    this.ranges = []GoRange{}
+    this.result = new(IndexerResult)
 
     this.Parse(filePath, file)
     for _, name := range this.FindAllPackageFiles(filePath) {
@@ -118,8 +117,8 @@ func (this *PackageIndexer) InspectNode(node ast.Node) bool {
                 goRange.Column = pos.Column
                 goRange.Offset = pos.Offset
                 goRange.Length = len(x.Name)
-                goRange.Kind = x.Obj.Kind
-                this.ranges = append(this.ranges, goRange)
+                goRange.Kind = int(x.Obj.Kind)
+                this.result.AddRange(goRange)
             }
             return false
         case *ast.CommentGroup:
@@ -128,6 +127,12 @@ func (this *PackageIndexer) InspectNode(node ast.Node) bool {
             return false
         case *ast.CompositeLit:
             return false
+        case *ast.FuncDecl:
+            var goScope GoFoldScope
+            goScope.LineFrom = this.fset.Position(x.Pos()).Line
+            goScope.LineTo = this.fset.Position(x.End()).Line
+            this.result.AddFoldScope(goScope)
+            return true
     }
     return true
 }
@@ -152,7 +157,7 @@ func (this *PackageIndexer) ParseErrorsInFile(errors scanner.ErrorList, filePath
             goerr.Length = len(scanError.Pos.String())
             goerr.Offset = scanError.Pos.Offset
             goerr.Message = scanError.Msg
-            this.errors = append(this.errors, goerr)
+            this.result.AddError(goerr)
         }
     }
 }
@@ -162,12 +167,12 @@ func (this *PackageIndexer) FindAllPackageFiles(filePath string) []string {
     dir := path.Dir(filePath)
     file, err := os.Open(dir)
     if err != nil {
-        panic(err)
+        panic(fmt.Sprintf("Failed to open sources dir '%s': %s", dir, err.Error()))
     }
     defer file.Close()
     names, err := file.Readdirnames(0)
     if err != nil {
-        panic(err)
+        panic(fmt.Sprintf("Failed to read content of sources dir '%s': %s", dir, err.Error()))
     }
     var result []string
     for _, name := range names {
@@ -181,7 +186,7 @@ func (this *PackageIndexer) FindAllPackageFiles(filePath string) []string {
 func (this *PackageIndexer) Parse(filePath string, src interface{}) {
     fast, err := parser.ParseFile(this.fset, filePath, src, parser.ParseComments)
     if err != nil {
-        panic(err)
+        panic(fmt.Sprintf("Failed to index file '%s': %s", filePath, err.Error()))
     }
     this.files[filePath] = fast
     if len(this.packageName) == 0 {

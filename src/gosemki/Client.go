@@ -26,6 +26,7 @@ func (this *Client) Exec() int {
     defer func() {
         if panicErr := recover(); panicErr != nil {
             PrintBacktrace(panicErr)
+            os.Exit(1)
         }
     }()
     var err error
@@ -106,17 +107,11 @@ func (this *Client) TryConnectServer(network, address string) (err error) {
     return err
 }
 
-type HighlightResult struct {
-    Ranges []GoRange
-    Errors []GoError
-}
-
 func (this *Client) ExecHighlight() {
     context := PackGoBuildContext(&build.Default)
     content, path := this.PrepareFileTraits()
-    var result HighlightResult
-    result.Ranges, result.Errors = ClientHighlight(this.RpcClient, content, path, context)
-    jsonBytes, err := json.Marshal(result)
+    results := ClientReindex(this.RpcClient, content, path, context)
+    jsonBytes, err := json.Marshal(results)
     if err != nil {
         panic(err)
     }
@@ -138,7 +133,7 @@ func (this *Client) PrepareFileTraits() ([]byte, string) {
     var filePath string
     if len(g_app.Input) > 0 {
         filePath = g_app.Input
-        file, err := os.Open(g_app.Input)
+        file, err := os.Open(filePath)
         if err != nil {
             panic(err)
         }
@@ -166,14 +161,14 @@ func (this *Client) PrepareFileTraits() ([]byte, string) {
                 panic(err)
             }
             fileContent.Write(line)
+            fileContent.WriteByte('\n')
             if err == io.EOF {
                 break
             }
         }
     }
-    if len(filePath) != 0 && !filepath.IsAbs(filePath) {
-        cwd, _ := os.Getwd()
-        filePath = filepath.Join(cwd, filePath)
+    if len(filePath) != 0 {
+        filePath, _ = filepath.Abs(filePath)
     }
     return fileContent.Bytes(), filePath
 }
