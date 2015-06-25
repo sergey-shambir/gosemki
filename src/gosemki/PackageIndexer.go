@@ -71,6 +71,7 @@ type PackageIndexer struct {
     files           map[string]*ast.File
     packageName     string
     result          *IndexerResult
+    lastIdent       *ast.Ident
 }
 
 func DefaultImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
@@ -108,24 +109,62 @@ func (this *PackageIndexer) Reindex(filePath string, file []byte) {
         this.ParseErrorsInFile(errorList, filePath)
     }
     fileAst := pkgAst.Files[filePath]
-    ast.Inspect(fileAst, func (node ast.Node) bool {
-        return this.InspectNode(node)
-    })
+    ast.Inspect(fileAst, this.InspectNode)
+}
+
+func (this *PackageIndexer) AddIdentRange(ident *ast.Ident) {
+    pos := this.fset.Position(ident.NamePos)
+    goRange := GoRange {
+        GoPos: GoPos {
+            Line: pos.Line,
+            Column: pos.Column,
+            Offset: pos.Offset,
+        },
+        Length: len(ident.Name),
+        Kind: inferIdentKind(ident),
+    }
+    this.result.AddRange(goRange)
+}
+
+func (this *PackageIndexer) AddFuncCallRange(expr *ast.CallExpr) {
+    pos := this.fset.Position(expr.Fun.Pos())
+    end := this.fset.Position(expr.Fun.End())
+    length := pos.Column - end.Column
+    if end.Line != pos.Line {
+        length = end.Column
+    }
+    goRange := GoRange {
+        GoPos: GoPos {
+            Line: pos.Line,
+            Column: pos.Column,
+            Offset: pos.Offset,
+        },
+        Length: length,
+        Kind: int(ast.Fun),
+    }
+    this.result.AddRange(goRange)
 }
 
 func (this *PackageIndexer) InspectNode(node ast.Node) bool {
     switch x := node.(type) {
     case *ast.Ident:
         if x.Obj != nil && x.Obj.Kind != ast.Bad {
-            pos := this.fset.Position(x.NamePos)
-            var goRange GoRange
-            goRange.Line = pos.Line
-            goRange.Column = pos.Column
-            goRange.Offset = pos.Offset
-            goRange.Length = len(x.Name)
-            goRange.Kind = int(x.Obj.Kind)
-            this.result.AddRange(goRange)
+            this.AddIdentRange(x)
         }
+        return false
+    case *ast.CallExpr:
+        visitor := CallExprVisitor{ indexer: this }
+        ast.Inspect(x.Fun, visitor.InspectNode)
+        visitor.ApplyIdent()
+        for _, v := range x.Args {
+            ast.Inspect(v, this.InspectNode)
+        }
+        return false
+    case *ast.KeyValueExpr:
+        visitor := KeyValueExprVisitor{ indexer: this }
+        ast.Inspect(x.Key, visitor.InspectNode)
+        visitor.ApplyIdent()
+        ast.Inspect(x.Value, this.InspectNode)
         return false
     case *ast.CommentGroup:
         return false

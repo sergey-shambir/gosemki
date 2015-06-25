@@ -7,6 +7,55 @@ import (
     "encoding/json"
 )
 
+const (
+    GoKindBad = iota
+    GoKindPkg
+    GoKindConst
+    GoKindType
+    GoKindVar
+    GoKindField
+    GoKindFunc
+    GoKindLabel
+)
+
+func inferIdentKind(ident *ast.Ident) int {
+    switch (ident.Obj.Kind) {
+    case ast.Pkg:
+        return GoKindPkg
+    case ast.Con:
+        return GoKindConst
+    case ast.Typ:
+        return GoKindType
+    case ast.Var:
+        return GoKindVar
+    case ast.Fun:
+        return GoKindFunc
+    case ast.Lbl:
+        return GoKindLabel
+    }
+    return GoKindBad
+}
+
+func goKindToString(kind int) string {
+    switch kind {
+    case int(GoKindPkg):
+        return "pkg"
+    case int(GoKindConst):
+        return "con"
+    case int(GoKindType):
+        return "typ"
+    case int(GoKindVar):
+        return "var"
+    case int(GoKindField):
+        return "fld"
+    case int(GoKindFunc):
+        return "fun"
+    case int(GoKindLabel):
+        return "lbl"
+    }
+    return ""
+}
+
 type GoPos struct {
     Line int
     Column int
@@ -44,24 +93,6 @@ type IndexerResult struct {
     InPanic   bool
 }
 
-func astKindToString(kind int) string {
-    switch kind {
-    case int(ast.Pkg):
-        return "pkg"
-    case int(ast.Con):
-        return "con"
-    case int(ast.Typ):
-        return "typ"
-    case int(ast.Var):
-        return "var"
-    case int(ast.Fun):
-        return "fun"
-    case int(ast.Lbl):
-        return "lbl"
-    }
-    return ""
-}
-
 func (this *GoRange) MarshalJSON() ([]byte, error) {
     var jsonBytes bytes.Buffer
     jsonBytes.WriteString("{\"lin\":")
@@ -73,7 +104,7 @@ func (this *GoRange) MarshalJSON() ([]byte, error) {
     jsonBytes.WriteString(",\"len\":")
     jsonBytes.WriteString(strconv.Itoa(this.Length))
     jsonBytes.WriteString(",\"knd\":\"")
-    jsonBytes.WriteString(astKindToString(this.Kind))
+    jsonBytes.WriteString(goKindToString(this.Kind))
     jsonBytes.WriteString("\"}")
     return jsonBytes.Bytes(), nil
 }
@@ -90,7 +121,7 @@ func (this *GoOutline) MarshalJSON() ([]byte, error) {
     jsonBytes.WriteString(",\"str\":\"")
     jsonBytes.WriteString(this.Name)
     jsonBytes.WriteString("\",\"knd\":\"")
-    jsonBytes.WriteString(astKindToString(this.Kind))
+    jsonBytes.WriteString(goKindToString(this.Kind))
     jsonBytes.WriteString("\"}")
     return jsonBytes.Bytes(), nil
 }

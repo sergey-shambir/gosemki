@@ -15,7 +15,7 @@ Results in JSON format use following scheme:
     "col": 2,       // Column where identifier starts
     "off": 2,       // Byte offset from source file start to first char of identifier
     "len": 4,       // Length of identifier
-    "knd": "pkg"    // 'pkg' for imported packages, 'con' for constants, 'typ' for types, 'var' for variables, 'fun' for funcs, 'lbl' for goto labels
+    "knd": "pkg"    // 'pkg' for imported packages, 'con' for constants, 'typ' for types, 'var' for variables, 'fun' for funcs, 'lbl' for goto labels and 'fld' for struct fields
   }],
   "Outline": [{  // List of items for document outline
     "lin": 1,       // Line number where identifier placed
