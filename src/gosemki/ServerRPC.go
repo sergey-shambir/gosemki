@@ -16,7 +16,7 @@ type ArgsReindex struct {
 }
 
 func (r *ServerRPC) Reindex(args *ArgsReindex, result *IndexerResult) error {
-    *result = *g_app.Server.Reindex(args.Content, args.Path, args.Context)
+    g_app.Server.Reindex(args.Content, args.Path, args.Context, result)
     return nil
 }
 

@@ -19,6 +19,12 @@ type GoRange struct {
     Kind int    // ast.ObjKind transformed to int
 }
 
+type GoOutline struct {
+    GoPos
+    Name string
+    Kind int    // ast.ObjKind transformed to int
+}
+
 type GoError struct {
     GoPos
     Length int
@@ -34,24 +40,29 @@ type IndexerResult struct {
     Ranges  []GoRange
     Errors  []GoError
     Folds   []GoFoldScope
+    Outline []GoOutline
+    InPanic   bool
+}
+
+func astKindToString(kind int) string {
+    switch kind {
+    case int(ast.Pkg):
+        return "pkg"
+    case int(ast.Con):
+        return "con"
+    case int(ast.Typ):
+        return "typ"
+    case int(ast.Var):
+        return "var"
+    case int(ast.Fun):
+        return "fun"
+    case int(ast.Lbl):
+        return "lbl"
+    }
+    return ""
 }
 
 func (this *GoRange) MarshalJSON() ([]byte, error) {
-    var kind string
-    switch this.Kind {
-    case int(ast.Pkg):
-        kind = "pkg"
-    case int(ast.Con):
-        kind = "con"
-    case int(ast.Typ):
-        kind = "typ"
-    case int(ast.Var):
-        kind = "var"
-    case int(ast.Fun):
-        kind = "fun"
-    case int(ast.Lbl):
-        kind = "lbl"
-    }
     var jsonBytes bytes.Buffer
     jsonBytes.WriteString("{\"lin\":")
     jsonBytes.WriteString(strconv.Itoa(this.Line))
@@ -62,7 +73,24 @@ func (this *GoRange) MarshalJSON() ([]byte, error) {
     jsonBytes.WriteString(",\"len\":")
     jsonBytes.WriteString(strconv.Itoa(this.Length))
     jsonBytes.WriteString(",\"knd\":\"")
-    jsonBytes.WriteString(kind)
+    jsonBytes.WriteString(astKindToString(this.Kind))
+    jsonBytes.WriteString("\"}")
+    return jsonBytes.Bytes(), nil
+}
+
+func (this *GoOutline) MarshalJSON() ([]byte, error) {
+    // TODO: escape this.Name quotes
+    var jsonBytes bytes.Buffer
+    jsonBytes.WriteString("{\"lin\":")
+    jsonBytes.WriteString(strconv.Itoa(this.Line))
+    jsonBytes.WriteString(",\"col\":")
+    jsonBytes.WriteString(strconv.Itoa(this.Column))
+    jsonBytes.WriteString(",\"off\":")
+    jsonBytes.WriteString(strconv.Itoa(this.Offset))
+    jsonBytes.WriteString(",\"str\":\"")
+    jsonBytes.WriteString(this.Name)
+    jsonBytes.WriteString("\",\"knd\":\"")
+    jsonBytes.WriteString(astKindToString(this.Kind))
     jsonBytes.WriteString("\"}")
     return jsonBytes.Bytes(), nil
 }
@@ -78,6 +106,7 @@ func (this *GoError) MarshalJSON() ([]byte, error) {
     jsonBytes.WriteString(",\"len\":")
     jsonBytes.WriteString(strconv.Itoa(this.Length))
     jsonBytes.WriteString(",\"msg\":\"")
+    // TODO: escape this.Message quotes
     jsonBytes.WriteString(this.Message)
     jsonBytes.WriteString("\"}")
     return jsonBytes.Bytes(), nil
@@ -97,20 +126,33 @@ func (this *IndexerResult) MarshalJSON() ([]byte, error) {
     rangesStr, _ := json.Marshal(this.Ranges)
     errorsStr, _ := json.Marshal(this.Errors)
     foldsStr, _ := json.Marshal(this.Folds)
+    outlineStr, _ := json.Marshal(this.Outline)
 
     var jsonBytes bytes.Buffer
     jsonBytes.WriteString("{\"ranges\":")
     jsonBytes.Write(rangesStr)
+    jsonBytes.WriteString("{\"outline\":")
+    jsonBytes.Write(outlineStr)
     jsonBytes.WriteString(",\"errors\":")
     jsonBytes.Write(errorsStr)
     jsonBytes.WriteString(",\"folds\":")
     jsonBytes.Write(foldsStr)
+    jsonBytes.WriteString(",\"in_panic\":")
+    if this.InPanic {
+        jsonBytes.WriteString("true")
+    } else {
+        jsonBytes.WriteString("false")
+    }
     jsonBytes.WriteString("\"}")
     return jsonBytes.Bytes(), nil
 }
 
 func (this *IndexerResult) AddRange(goRange GoRange) {
     this.Ranges = append(this.Ranges, goRange)
+}
+
+func (this *IndexerResult) AddOutline(goOutline GoOutline) {
+    this.Outline = append(this.Outline, goOutline)
 }
 
 func (this *IndexerResult) AddError(goError GoError) {

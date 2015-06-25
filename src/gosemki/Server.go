@@ -74,13 +74,12 @@ func (this *Server) DropCache() {
     // Currently does nothing
 }
 
-func (this *Server) Reindex(file []byte, filePath string, packedContext GoBuildContext) (result *IndexerResult) {
+func (this *Server) Reindex(file []byte, filePath string, packedContext GoBuildContext, result *IndexerResult) () {
     defer func() {
         // TODO: doesn't recover from panic, find reason and fix.
         if err := recover(); err != nil {
             PrintBacktrace(err)
-            result := new(IndexerResult)
-            result.AddError(GoError{GoPos{0, 0, 0}, 1, "panic occured"})
+            result.InPanic = true
             this.DropCache()
         }
     }()
@@ -90,9 +89,8 @@ func (this *Server) Reindex(file []byte, filePath string, packedContext GoBuildC
         this.Context = context
     }
     indexer := new(PackageIndexer)
+    indexer.result = result
     indexer.Reindex(filePath, file)
-    result = indexer.result
-    return result
 }
 
 func (this *Server) Close() {

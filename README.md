@@ -13,8 +13,15 @@ Results in JSON format use following scheme:
 { "Ranges": [{  // List of hints for identifiers highlighting in editor
     "lin": 1,       // Line number where identifier placed
     "col": 2,       // Column where identifier starts
-    "offset": 2,    // Byte offset from source file start to first char of identifier
+    "off": 2,       // Byte offset from source file start to first char of identifier
     "len": 4,       // Length of identifier
+    "knd": "pkg"    // 'pkg' for imported packages, 'con' for constants, 'typ' for types, 'var' for variables, 'fun' for funcs, 'lbl' for goto labels
+  }],
+  "Outline": [{  // List of items for document outline
+    "lin": 1,       // Line number where identifier placed
+    "col": 2,       // Column where identifier starts
+    "off": 2,       // Byte offset from source file start to first char of identifier
+    "str": 4,       // Title of outline item
     "knd": "pkg"    // 'pkg' for imported packages, 'con' for constants, 'typ' for types, 'var' for variables, 'fun' for funcs, 'lbl' for goto labels
   }],
   "Errors": [{  // List of syntax and semantic errors
@@ -27,6 +34,7 @@ Results in JSON format use following scheme:
   "Folds": [{   // Lists of ranges for code folding in editor
       "from": 12    // First line of code folding range
       "to": 20      // Last line of code folding range
-  }]
+  }],
+  InPanic: false // This flag is true after daemon panic occured
 }
 ```
