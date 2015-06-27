@@ -140,7 +140,7 @@ func (this *PackageIndexer) AddFuncCallRange(expr *ast.CallExpr) {
             Offset: pos.Offset,
         },
         Length: length,
-        Kind: int(ast.Fun),
+        Kind: GoKindFunc,
     }
     this.result.AddRange(goRange)
 }
@@ -184,7 +184,7 @@ func (this *PackageIndexer) InspectNode(node ast.Node) bool {
                 Offset: pos.Offset,
             },
             Name: x.Name.Name,
-            Kind: int(ast.Fun),
+            Kind: GoKindFunc,
         }
         this.result.AddOutline(goOutline)
         return true
@@ -197,7 +197,7 @@ func (this *PackageIndexer) InspectNode(node ast.Node) bool {
                 Offset: pos.Offset,
             },
             Name: x.Name.Name,
-            Kind: int(ast.Typ),
+            Kind: GoKindType,
         }
         this.result.AddOutline(goOutline)
         return true
