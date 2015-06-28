@@ -76,7 +76,6 @@ func (this *Server) DropCache() {
 
 func (this *Server) Reindex(file []byte, filePath string, packedContext GoBuildContext, result *IndexerResult) {
 	defer func() {
-		// TODO: doesn't recover from panic, find reason and fix.
 		if err := recover(); err != nil {
 			PrintBacktrace(err)
 			result.InPanic = true

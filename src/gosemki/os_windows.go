@@ -1,4 +1,4 @@
-// +build !windows
+// +build windows
 
 package main
 
@@ -9,6 +9,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"syscall"
+	"unsafe"
+)
+
+var (
+	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+)
+
+var (
+	proc_get_module_file_name = kernel32.NewProc("GetModuleFileNameW")
 )
 
 func FileExists(filename string) bool {
@@ -18,26 +28,13 @@ func FileExists(filename string) bool {
 
 // Full path of the current executable
 func GetExecutableFilename() string {
-	// try readlink first
-	path, err := os.Readlink("/proc/self/exe")
-	if err == nil {
-		return path
+	b := make([]uint16, syscall.MAX_PATH)
+	ret, _, err := syscall.Syscall(proc_get_module_file_name.Addr(), 3,
+		0, uintptr(unsafe.Pointer(&b[0])), uintptr(len(b)))
+	if int(ret) == 0 {
+		panic(fmt.Sprintf("GetModuleFileNameW : err %d", int(err)))
 	}
-	// use argv[0]
-	path = os.Args[0]
-	if !filepath.IsAbs(path) {
-		cwd, _ := os.Getwd()
-		path = filepath.Join(cwd, path)
-	}
-	if FileExists(path) {
-		return path
-	}
-	// Fallback : use "gosemki" and assume we are in the PATH...
-	path, err = exec.LookPath("gosemki")
-	if err == nil {
-		return path
-	}
-	return ""
+	return syscall.UTF16ToString(b)
 }
 
 //-------------------------------------------------------------------------
