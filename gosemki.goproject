@@ -10,10 +10,4 @@ GoProject {
         JavaScriptFiles {
         }
     }
-//    Package {
-//        name: "github.com/codegangsta/cli"
-//        Files {
-//            filter: "*.*"
-//        }
-//    }
 }

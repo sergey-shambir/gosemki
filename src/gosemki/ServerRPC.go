@@ -43,6 +43,7 @@ func (r *ServerRPC) CloseServer(args *ArgsCloseServer, reply *ReplyCloseServer) 
 	reply.Unused = 0
 	return nil
 }
+
 func ClientCloseServer(client *rpc.Client) {
 	args := &ArgsCloseServer{0}
 	var reply ReplyCloseServer

@@ -10,11 +10,18 @@ type CallExprVisitor struct {
 	otherNodes []ast.Node
 }
 
+func (this *CallExprVisitor) ProcessExpr(expr *ast.CallExpr) {
+	ast.Inspect(expr.Fun, this.InspectNode)
+	this.ApplyIdent()
+	for _, v := range expr.Args {
+		ast.Inspect(v, this.indexer.InspectNode)
+	}
+}
+
 func (this *CallExprVisitor) InspectNode(node ast.Node) bool {
 	switch x := node.(type) {
 	case *ast.Ident:
-		oldNode := this.funName
-		if oldNode != nil && oldNode.Obj != nil && oldNode.Obj.Kind != ast.Bad {
+		if this.funName != nil {
 			this.indexer.AddIdentRange(this.funName)
 		}
 		this.funName = x

@@ -3,11 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"go/build"
 	"net"
 	"net/rpc"
 	"os"
-	"reflect"
 	"runtime"
 )
 
@@ -19,7 +17,6 @@ type Server struct {
 	Socket   string
 	Listener net.Listener
 	CmdInput chan int
-	Context  build.Context
 }
 
 func (this *Server) Exec(socket string) int {
@@ -82,12 +79,8 @@ func (this *Server) Reindex(file []byte, filePath string, packedContext GoBuildC
 			this.DropCache()
 		}
 	}()
-	context := UnpackGoBuildContext(&packedContext)
-	if !reflect.DeepEqual(context, this.Context) {
-		this.DropCache()
-		this.Context = context
-	}
 	indexer := new(PackageIndexer)
+	indexer.context = UnpackGoBuildContext(&packedContext)
 	indexer.result = result
 	indexer.Reindex(filePath, file)
 }

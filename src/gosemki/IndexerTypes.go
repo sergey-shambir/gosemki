@@ -18,6 +18,17 @@ const (
 	GoKindLabel
 )
 
+func isAstObjectAField(obj *ast.Object) bool {
+	if obj.Decl == nil {
+		return false
+	}
+	switch obj.Decl.(type) {
+	case *ast.Field:
+		return true
+	}
+	return false
+}
+
 func inferIdentKind(ident *ast.Ident) int {
 	switch ident.Obj.Kind {
 	case ast.Pkg:
@@ -27,6 +38,9 @@ func inferIdentKind(ident *ast.Ident) int {
 	case ast.Typ:
 		return GoKindType
 	case ast.Var:
+		if isAstObjectAField(ident.Obj) {
+			return GoKindField
+		}
 		return GoKindVar
 	case ast.Fun:
 		return GoKindFunc
